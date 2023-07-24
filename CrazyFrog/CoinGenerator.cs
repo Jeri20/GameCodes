@@ -1,15 +1,15 @@
 using UnityEngine;
 
-public class SpikeGenerator : MonoBehaviour
+public class CoinGenerator : MonoBehaviour
 {
-    public GameObject spike;
+    public GameObject coin;
     public float minSpeed;
     public float maxSpeed;
     public float currentSpeed;
     public float speedMultiplier;
 
     private PlayerController playerController;
-    private bool hasGeneratedFirstSpike = false;
+    private bool hasGeneratedFirstCoin = false;
 
     void Start()
     {
@@ -19,11 +19,11 @@ public class SpikeGenerator : MonoBehaviour
 
     void Update()
     {
-        if (playerController.hasFirstJumped && !hasGeneratedFirstSpike)
+        if (playerController.hasFirstJumped && !hasGeneratedFirstCoin)
         {
             currentSpeed = minSpeed;
-            GenerateSpike();
-            hasGeneratedFirstSpike = true;
+            GenerateCoin();
+            hasGeneratedFirstCoin = true;
         }
 
         if (currentSpeed < maxSpeed)
@@ -32,15 +32,15 @@ public class SpikeGenerator : MonoBehaviour
         }
     }
 
-    public void GenerateNextSpikeWithGap()
+    public void GenerateNextCoinWithGap()
     {
         float randomWait = Random.Range(0.5f, 1.2f);
-        Invoke("GenerateSpike", randomWait);
+        Invoke("GenerateCoin", randomWait);
     }
 
-    void GenerateSpike()
+    void GenerateCoin()
     {
-        GameObject spikeIns = Instantiate(spike, transform.position, transform.rotation);
-        spikeIns.GetComponent<SpikeScript>().spikeGenerator = this;
+        GameObject coinIns = Instantiate(coin, transform.position, transform.rotation);
+        coinIns.GetComponent<CoinScript>().coinGenerator = this;
     }
 }

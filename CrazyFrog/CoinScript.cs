@@ -1,19 +1,19 @@
 using UnityEngine;
 
-public class SpikeScript : MonoBehaviour
+public class CoinScript : MonoBehaviour
 {   
-    public SpikeGenerator spikeGenerator;
+    public CoinGenerator coinGenerator;
     
     void Update()
     {    
-        transform.Translate(Vector2.left * spikeGenerator.currentSpeed * Time.deltaTime);
+        transform.Translate(Vector2.left * coinGenerator.currentSpeed * Time.deltaTime);
     }                                  
     
     private void OnTriggerEnter2D(Collider2D collision)
     {   
         if(collision.gameObject.CompareTag("nextLine"))
         {    
-            spikeGenerator.GenerateNextSpikeWithGap();
+            coinGenerator.GenerateNextCoinWithGap();
         }
         else if(collision.gameObject.CompareTag("Finish"))
         {    

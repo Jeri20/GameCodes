@@ -1,38 +1,40 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
+using TMPro;
 
 public class PlayerController : MonoBehaviour
 {
     public float jumpForce = 5f;
     public float gravityScale = 1f;
-    public LayerMask groundLayer;
     public float raycastDistance = 0.1f;
+    public Animator animator;
 
     private Rigidbody2D rb;
-    private bool isGrounded = false;
     private bool isSticking = false;
     private float stickySurfaceAngle = 0f;
     private bool isAlive = true;
     private bool isGameStarted = false;
     public bool hasFirstJumped = false;
-    private float score;
+    private int coinCount;
 
-    public Text scoreText;
+    public TextMeshProUGUI coinText;
+
+    private Vector2 dragStartPosition;
+    private Vector2 dragEndPosition;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        rb.gravityScale = 0; // Disable gravity initially
-        rb.constraints = RigidbodyConstraints2D.FreezePosition; // Freeze the player's position
+        rb.gravityScale = 0;
+        rb.constraints = RigidbodyConstraints2D.FreezePosition;
         score = 0;
+        coinCount = 0;
     }
 
     void Update()
     {
         if (!isGameStarted)
         {
-            // Check for swipe to start the game
             if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
             {
                 StartGame();
@@ -42,63 +44,56 @@ public class PlayerController : MonoBehaviour
 
         if (isAlive)
         {
-            // Check if the player is grounded or sticking to a surface
-            isGrounded = Physics2D.Raycast(transform.position, Vector2.down, raycastDistance, groundLayer);
             isSticking = Mathf.Abs(stickySurfaceAngle) > 0f;
 
-            // Jump only if the player is grounded or has made the first jump
-            if ((isGrounded || (isSticking && hasFirstJumped)))
+            if (isSticking || (hasFirstJumped && rb.velocity.y == 0))
             {
-                if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+                if (Input.touchCount > 0)
                 {
-                    // Calculate swipe direction and jump accordingly
-                    Vector2 touchDelta = Input.GetTouch(0).deltaPosition;
-                    if (Mathf.Abs(touchDelta.x) > Mathf.Abs(touchDelta.y))
+                    Touch touch = Input.GetTouch(0);
+
+                    if (touch.phase == TouchPhase.Began)
                     {
-                        if (touchDelta.x > 0)
-                            JumpRight();
-                        else
-                            JumpLeft();
+                        dragStartPosition = touch.position;
+                    }
+                    else if (touch.phase == TouchPhase.Ended)
+                    {
+                        dragEndPosition = touch.position;
+                        CalculateJump();
                     }
                 }
             }
 
             score += Time.deltaTime * 4;
             scoreText.text = "SCORE: " + score.ToString("F");
+            coinText.text = "COINS: " + coinCount.ToString();
         }
+
+        animator.SetBool("IsSticking", isSticking);
+        animator.SetBool("IsGrounded", rb.velocity.y == 0);
     }
 
     void FixedUpdate()
     {
-        // Apply sticky surface movement
         if (isSticking)
         {
-            rb.velocity = Quaternion.Euler(0, 0, stickySurfaceAngle) * Vector2.up * jumpForce;
+            rb.velocity = Quaternion.Euler(0, 0, stickySurfaceAngle) * Vector2.up * rb.velocity.magnitude;
         }
     }
 
-    void JumpLeft()
+    void CalculateJump()
     {
-        if (isGrounded)
-        {
-            rb.AddForce(Vector2.left * jumpForce, ForceMode2D.Impulse);
-        }
-        else if (isSticking)
-        {
-            rb.AddForce(Quaternion.Euler(0, 0, -stickySurfaceAngle) * Vector2.left * jumpForce, ForceMode2D.Impulse);
-        }
+        Vector2 swipeVector = dragEndPosition - dragStartPosition;
+        float swipeDistance = swipeVector.magnitude;
+        float calculatedJumpForce = swipeDistance * jumpForce;
+        Vector2 jumpDirection = swipeVector.normalized;
+        Jump(jumpDirection, calculatedJumpForce);
     }
 
-    void JumpRight()
+    void Jump(Vector2 direction, float force)
     {
-        if (isGrounded)
-        {
-            rb.AddForce(Vector2.right * jumpForce, ForceMode2D.Impulse);
-        }
-        else if (isSticking)
-        {
-            rb.AddForce(Quaternion.Euler(0, 0, -stickySurfaceAngle) * Vector2.right * jumpForce, ForceMode2D.Impulse);
-        }
+        rb.AddForce(direction * force, ForceMode2D.Impulse);
+        hasFirstJumped = true;
     }
 
     void OnCollisionEnter2D(Collision2D collision)
@@ -108,21 +103,19 @@ public class PlayerController : MonoBehaviour
             isSticking = true;
             stickySurfaceAngle = Vector2.SignedAngle(Vector2.up, collision.GetContact(0).normal);
         }
-        else if (collision.gameObject.CompareTag("ground"))
-        {
-            if (!isGrounded)
-            {
-                isGrounded = true;
-            }
-        }
         else if (collision.gameObject.CompareTag("spike"))
         {
-            if (!isAlive)
+            if (isAlive)
             {
                 isAlive = false;
                 Time.timeScale = 0;
                 GameOver();
             }
+        }
+        else if (collision.gameObject.CompareTag("coin"))
+        {
+            coinCount++;
+            Destroy(collision.gameObject); // Destroy the collected coin
         }
     }
 
@@ -139,18 +132,14 @@ public class PlayerController : MonoBehaviour
     {
         isGameStarted = true;
         rb.gravityScale = gravityScale;
-        rb.constraints = RigidbodyConstraints2D.None; // Release the player's position constraints
-        rb.constraints = RigidbodyConstraints2D.FreezeRotation; // Freeze the player's rotation
+        rb.constraints = RigidbodyConstraints2D.None;
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
     }
 
     private void GameOver()
     {
-        // Disable player movement
         rb.velocity = Vector2.zero;
         rb.gravityScale = 0;
-
-        // Disable player input or show game-over UI
-        // Implement your game-over logic here
         Debug.Log("Game Over");
     }
 }
