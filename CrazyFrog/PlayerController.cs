@@ -1,15 +1,16 @@
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 
 public class PlayerController : MonoBehaviour
 {
     public float jumpForce = 5f;
     public float gravityScale = 1f;
+    public LayerMask groundLayer;
     public float raycastDistance = 0.1f;
     public Animator animator;
 
     private Rigidbody2D rb;
+    private bool isGrounded = false;
     private bool isSticking = false;
     private float stickySurfaceAngle = 0f;
     private bool isAlive = true;
@@ -22,12 +23,14 @@ public class PlayerController : MonoBehaviour
     private Vector2 dragStartPosition;
     private Vector2 dragEndPosition;
 
+    private bool isJumpingLeft = false;
+    private bool isJumpingRight = false;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         rb.gravityScale = 0;
         rb.constraints = RigidbodyConstraints2D.FreezePosition;
-        score = 0;
         coinCount = 0;
     }
 
@@ -35,6 +38,7 @@ public class PlayerController : MonoBehaviour
     {
         if (!isGameStarted)
         {
+            // Check for swipe to start the game
             if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
             {
                 StartGame();
@@ -44,33 +48,37 @@ public class PlayerController : MonoBehaviour
 
         if (isAlive)
         {
+            isGrounded = Physics2D.Raycast(transform.position, Vector2.down, raycastDistance, groundLayer);
             isSticking = Mathf.Abs(stickySurfaceAngle) > 0f;
 
-            if (isSticking || (hasFirstJumped && rb.velocity.y == 0))
+            if ((isGrounded || (isSticking && hasFirstJumped)))
             {
-                if (Input.touchCount > 0)
+                if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
                 {
-                    Touch touch = Input.GetTouch(0);
+                    Vector2 touchPosition = Input.GetTouch(0).position;
+                    bool isLeftSide = touchPosition.x < Screen.width / 2f;
 
-                    if (touch.phase == TouchPhase.Began)
+                    if (isLeftSide)
                     {
-                        dragStartPosition = touch.position;
+                        JumpLeft();
                     }
-                    else if (touch.phase == TouchPhase.Ended)
+                    else
                     {
-                        dragEndPosition = touch.position;
-                        CalculateJump();
+                        JumpRight();
                     }
                 }
             }
 
-            score += Time.deltaTime * 4;
-            scoreText.text = "SCORE: " + score.ToString("F");
             coinText.text = "COINS: " + coinCount.ToString();
         }
 
         animator.SetBool("IsSticking", isSticking);
-        animator.SetBool("IsGrounded", rb.velocity.y == 0);
+        animator.SetBool("IsGrounded", isGrounded);
+        animator.SetBool("JumpLeft", isJumpingLeft);
+        animator.SetBool("JumpRight", isJumpingRight);
+
+        isJumpingLeft = false;
+        isJumpingRight = false;
     }
 
     void FixedUpdate()
@@ -81,19 +89,36 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void CalculateJump()
-    {
-        Vector2 swipeVector = dragEndPosition - dragStartPosition;
-        float swipeDistance = swipeVector.magnitude;
-        float calculatedJumpForce = swipeDistance * jumpForce;
-        Vector2 jumpDirection = swipeVector.normalized;
-        Jump(jumpDirection, calculatedJumpForce);
-    }
-
     void Jump(Vector2 direction, float force)
     {
         rb.AddForce(direction * force, ForceMode2D.Impulse);
         hasFirstJumped = true;
+    }
+
+    public void JumpLeft()
+    {
+        if (isGrounded)
+        {
+            rb.AddForce(Vector2.left * jumpForce, ForceMode2D.Impulse);
+        }
+        else if (isSticking)
+        {
+            rb.AddForce(Quaternion.Euler(0, 0, -stickySurfaceAngle) * Vector2.left * jumpForce, ForceMode2D.Impulse);
+        }
+        isJumpingLeft = true;
+    }
+
+    public void JumpRight()
+    {
+        if (isGrounded)
+        {
+            rb.AddForce(Vector2.right * jumpForce, ForceMode2D.Impulse);
+        }
+        else if (isSticking)
+        {
+            rb.AddForce(Quaternion.Euler(0, 0, -stickySurfaceAngle) * Vector2.right * jumpForce, ForceMode2D.Impulse);
+        }
+        isJumpingRight = true;
     }
 
     void OnCollisionEnter2D(Collision2D collision)
@@ -112,7 +137,7 @@ public class PlayerController : MonoBehaviour
                 GameOver();
             }
         }
-        else if (collision.gameObject.CompareTag("coin"))
+        else if (collision.gameObject.CompareTag("Coin"))
         {
             coinCount++;
             Destroy(collision.gameObject); // Destroy the collected coin
