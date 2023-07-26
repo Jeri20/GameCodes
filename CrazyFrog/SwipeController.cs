@@ -3,8 +3,6 @@ using UnityEngine;
 public class SwipeController : MonoBehaviour
 {
     public PlayerController playerController;
-    private Vector2 swipeStartPosition;
-    private Vector2 swipeEndPosition;
 
     void Update()
     {
@@ -14,27 +12,19 @@ public class SwipeController : MonoBehaviour
 
             if (touch.phase == TouchPhase.Began)
             {
-                swipeStartPosition = touch.position;
-            }
-            else if (touch.phase == TouchPhase.Ended)
-            {
-                swipeEndPosition = touch.position;
-                DetectSwipeDirection();
-            }
-        }
-    }
+                float touchX = touch.position.x;
+                float screenWidth = Screen.width;
 
-    void DetectSwipeDirection()
-    {
-        Vector2 swipeDirection = swipeEndPosition - swipeStartPosition;
-
-        if (swipeDirection.x > 0)
-        {
-            playerController.JumpRight();
-        }
-        else if (swipeDirection.x < 0)
-        {
-            playerController.JumpLeft();
+                // Check if the touch is on the left or right half of the screen
+                if (touchX < screenWidth / 2f)
+                {
+                    playerController.JumpLeft();
+                }
+                else
+                {
+                    playerController.JumpRight();
+                }
+            }
         }
     }
 }
