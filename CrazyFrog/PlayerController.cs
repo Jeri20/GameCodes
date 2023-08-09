@@ -42,6 +42,7 @@ public class PlayerController : MonoBehaviour
             if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
             {
                 StartGame();
+                hasFirstJumped= true;
             }
             return;
         }
@@ -66,6 +67,8 @@ public class PlayerController : MonoBehaviour
                     {
                         JumpRight();
                     }
+
+                    animator.SetBool("IsJumping", true);
                 }
             }
 
