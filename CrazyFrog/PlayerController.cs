@@ -17,8 +17,10 @@ public class PlayerController : MonoBehaviour
     private bool isGameStarted = false;
     public bool hasFirstJumped = false;
     private int coinCount;
+    private int highestScore; // Added variable for highest score
 
     public TextMeshProUGUI coinText;
+    public TextMeshProUGUI highScoreText; // Added reference to high score TextMeshProUGUI
 
     private Vector2 dragStartPosition;
     private Vector2 dragEndPosition;
@@ -32,6 +34,12 @@ public class PlayerController : MonoBehaviour
         rb.gravityScale = 0;
         rb.constraints = RigidbodyConstraints2D.FreezePosition;
         coinCount = 0;
+
+        // Load the highest score from PlayerPrefs
+        highestScore = PlayerPrefs.GetInt("HighestScore", 0);
+
+        // Update the high score text
+        highScoreText.text = "HIGHEST: " + highestScore.ToString();
     }
 
     void Update()
@@ -169,5 +177,13 @@ public class PlayerController : MonoBehaviour
         rb.velocity = Vector2.zero;
         rb.gravityScale = 0;
         Debug.Log("Game Over");
+
+        // Update highest score if needed and save to PlayerPrefs
+        if (coinCount > highestScore)
+        {
+            highestScore = coinCount;
+            PlayerPrefs.SetInt("HighestScore", highestScore);
+            highScoreText.text = "HIGHEST: " + highestScore.ToString(); // Update high score text
+        }
     }
 }
