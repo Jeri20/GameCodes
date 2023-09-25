@@ -1,0 +1,145 @@
+import pygame
+import sys
+import random
+import cv2
+import numpy as np
+import tensorflow as tf
+
+# Initialize Pygame
+pygame.init()
+
+# Constants
+SCREEN_WIDTH = 400
+SCREEN_HEIGHT = 400
+GRID_SIZE = 20
+GRID_WIDTH = SCREEN_WIDTH // GRID_SIZE
+GRID_HEIGHT = SCREEN_HEIGHT // GRID_SIZE
+SNAKE_SIZE = GRID_SIZE
+
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+
+# Initialize the screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Snake Game")
+
+# Snake variables
+snake = [(5, 5)]
+snake_direction = (1, 0)
+snake_speed = 10
+
+# Food variables
+food = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+
+# Game over flag
+game_over = False
+
+# Load the pre-trained TensorFlow model for gesture recognition
+model = tf.keras.models.load_model('keras_model.h5')
+
+# Camera setup
+cap = cv2.VideoCapture(0)
+
+# Initialize the last detected gesture as a global variable
+last_detected_gesture = "UP"  # Initialize with a default gesture
+
+# Gesture recognition function
+def recognize_gesture(frame):
+    global last_detected_gesture  # Declare last_detected_gesture as a global variable
+    # Check if the frame is empty (invalid)
+    if frame is None:
+        return "NULL"
+
+    # Preprocess the frame as required by your model (resize, normalize, etc.)
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame = cv2.resize(frame, (224, 224))  # Adjust the size as per your model's input size
+    frame = frame / 255.0  # Normalize the image
+
+    # Make predictions using the TensorFlow model
+    predicted_gesture = model.predict(np.expand_dims(frame, axis=0))
+
+    # Map the model's output to game controls
+    control_mapping = {
+        0: "LEFT",
+        1: "RIGHT",
+        2: "UP",
+        3: "DOWN",
+        4: "NULL"
+    }
+
+    # Get the most likely gesture
+    detected_gesture = control_mapping[np.argmax(predicted_gesture)]
+
+    # Update the last detected gesture
+    last_detected_gesture = detected_gesture
+
+    return detected_gesture
+
+# Game loop
+while not game_over:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+    # Read a frame from the camera
+    ret, frame = cap.read()
+
+    # Get the detected gesture
+    detected_gesture = recognize_gesture(frame)
+
+    # Update snake direction based on the detected gesture
+    if detected_gesture == "UP" and snake_direction != (0, 1):
+        snake_direction = (0, -1)
+    elif detected_gesture == "DOWN" and snake_direction != (0, -1):
+        snake_direction = (0, 1)
+    elif detected_gesture == "LEFT" and snake_direction != (1, 0):
+        snake_direction = (-1, 0)
+    elif detected_gesture == "RIGHT" and snake_direction != (-1, 0):
+        snake_direction = (1, 0)
+
+    # Move the snake
+    x, y = snake[0]
+    new_head = (x + snake_direction[0], y + snake_direction[1])
+
+    # Wrap around the screen
+    new_head = (new_head[0] % GRID_WIDTH, new_head[1] % GRID_HEIGHT)
+
+    snake.insert(0, new_head)
+
+    # Check for collisions
+    if snake[0] == food:
+        food = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+    else:
+        snake.pop()
+
+    # Check for game over
+    if len(snake) != len(set(snake)):
+        game_over = True
+
+    # Draw everything
+    screen.fill(BLACK)
+    for segment in snake:
+        pygame.draw.rect(screen, GREEN, (segment[0] * GRID_SIZE, segment[1] * GRID_SIZE, SNAKE_SIZE, SNAKE_SIZE))
+    pygame.draw.rect(screen, RED, (food[0] * GRID_SIZE, food[1] * GRID_SIZE, SNAKE_SIZE, SNAKE_SIZE))
+
+    pygame.display.flip()
+
+    # Cap the frame rate
+    pygame.time.Clock().tick(snake_speed)
+
+# Game over screen
+font = pygame.font.Font(None, 36)
+game_over_text = font.render("Game Over", True, WHITE)
+game_over_rect = game_over_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+screen.blit(game_over_text, game_over_rect)
+pygame.display.flip()
+
+# Wait for a few seconds before quitting
+pygame.time.delay(2000)
+
+pygame.quit()
+sys.exit()
